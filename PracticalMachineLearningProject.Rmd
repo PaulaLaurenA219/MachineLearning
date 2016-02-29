@@ -1,0 +1,95 @@
+---
+output:
+  html_document:
+    theme: spacelab
+  pdf_document: default
+---
+# Executive Summary
+Using devices such as Jawbone Up, Nike FuelBand, and Fitbit it is now possible to collect a large amount of data about personal activity relatively inexpensively. These type of devices are part of the quantified self movement - a group of enthusiasts who take measurements about themselves regularly to improve their health, to find patterns in their behavior, or because they are tech geeks. One thing that people regularly do is quantify how much of a particular activity they do, but they rarely quantify how well they do it. In this project, the goal will be to use data from accelerometers on the belt, forearm, arm, and dumbell of six participants. The objective is to use this data from the six participants in this supervised learning task of prediction to determine the efficiency of their exercise.  
+ 
+
+### Load the Libraries
+```{r}
+library(knitr)
+library(caret)
+library(corrplot)
+library(kernlab)
+library(randomForest)
+```
+```{r setoptions, echo = FALSE}
+opts_chunk$set(cache = FALSE)
+```
+
+##Dataset 
+Two files were provided, for training and test.  
+```{r}
+# read the csv file for training 
+trainSet <- read.csv("./data/pml-training.csv", na.strings= c("NA",""," "))
+```
+
+```{r}
+# preprocessing (cleaning data)
+cleanData1 <- apply(trainSet, 2, function(x) {sum(is.na(x))})
+cleanData2 <- trainSet[,which(cleanData1 == 0)]
+
+# discarded first 8 columns which were irrelevant to building the model.
+cleanData <-cleanData2[8:length(cleanData2)]
+```
+
+##Model Generation 
+The training datas split into training and validation sets using a 75, 25 respective split.  Training is
+for training the model and validation is to validate the training model.  
+
+```{r}
+# breakup training data into validation and training data
+train <- createDataPartition(y = cleanData$classe, p = 0.75, list = FALSE)
+training <- cleanData[train, ]
+validation <- cleanData[-train, ]
+```
+
+First a corelation plot is created for the 52 variables and then plotted.
+```{r, fig.height = 10, fig.width = 10}
+#generate and plot correlation matrix
+COR<-cor(training[, -length(training)], method = "pearson")
+col1 <- colorRampPalette(c("#7F0000","red","#FF7F00","yellow","white", 
+        "cyan", "#007FFF", "blue","#00007F"))
+corrplot(COR, order="hclust", addrect=3,method = "ellipse", col=col1(100),type = "lower", tl.cex = 0.8,  tl.col = rgb(0, 0, 0))                                    
+```
+The red clusters in the plot represent negative correlation and blue clusters represe4nt postive correlation. 
+
+For classification random forest classifier was utilized.
+
+```{r}
+# random forest model is fitted using all of the variables in the training dataset. 
+rf_model <- randomForest(classe ~ ., data = training, ntree=1000)
+rf_model
+```
+
+The error on training is fairly low, the diagonal shows the correct classification.  Now the model is tested against the validation set:  
+
+```{r}
+crossValidation <- predict(rf_model, validation)
+confusionMatrix(validation$classe, crossValidation)
+```
+At 99.82%, the  model performed very well on validation set.  Now will test on test set. 
+
+cleanData1 <- apply(trainSet, 2, function(x) {sum(is.na(x))})
+cleanData2 <- trainSet[,which(cleanData1 == 0)]
+# discarded first 8 columns which were irrelevant to building the model.
+cleanData <-cleanData2[8:length(cleanData2)]
+
+```{r}
+# test data (Note: same thing done to training for cleaning also done to test)
+testSet<- read.csv("./data/pml-testing.csv", na.strings= c("NA",""," "))
+testClean1<- apply(testSet, 2, function(x) {sum(is.na(x))})
+testClean2 <- testSet[,which(testClean1== 0)]
+testClean <- testClean2[8:length(testClean2)]
+
+#test model on test set
+testModel <- predict(rf_model, testClean )
+testModel
+
+```
+
+##Conclusion
+Remarkably the model is very good on this data and it's reasonable to assume that the out of sample error will be very good as well.  
